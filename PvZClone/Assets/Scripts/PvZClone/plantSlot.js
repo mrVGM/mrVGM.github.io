@@ -21,6 +21,11 @@ var plantSlot = {
                     name: 'Curtain',
                     type: 'gameObject',
                     value: undefined
+                },
+                priceText: {
+                    name: 'Price Text',
+                    type: 'gameObject',
+                    value: undefined
                 }
             },
             interface: {
@@ -31,6 +36,10 @@ var plantSlot = {
                     avatar.params.image.value = plantData.params.plantAvatarImage.value;
 
                     inst.lastSpawn = game.api.lastFrame;
+
+                    var priceText = inst.params.priceText.gameObjectRef;
+                    priceText = game.api.getComponent(priceText, game.dev.text);
+                    priceText.params.text.value = plantData.params.sunCost.value;
                 },
                 getPlantData: function(inst) {
                     return game.library[inst.params.plantData.value].scriptableObject.component.instance;
@@ -42,8 +51,14 @@ var plantSlot = {
                     }
                     return Math.min(1, (game.api.lastFrame - inst.lastSpawn) / plantData.params.framesToLoad.value);
                 },
-                canSelect: function(inst) {
-                    return inst.interface.getLoadStatus(inst) === 1;
+                getSunCost: function(inst) {
+                    var plantData = inst.interface.getPlantData(inst);
+                    return plantData.params.sunCost.value;
+                },
+                canSelect: function(inst, sunCollected) {
+                    var loaded = inst.interface.getLoadStatus(inst) === 1;
+                    var enoughSun = inst.interface.getSunCost(inst) <= sunCollected;
+                    return loaded && enoughSun;
                 },
                 update: function(inst) {
                     var curtainTransform = inst.params.curtain.gameObjectRef;
