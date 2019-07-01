@@ -1,4 +1,5 @@
 var eatPlant = {
+    extendsFrom: "Assets\\Scripts\\PvZClone\\Abilities\\ability.js",
     createInstance: function() {
         var inst = {
             name: 'Eat Plant',
@@ -49,6 +50,16 @@ var eatPlant = {
                         if (!taggedComponent || taggedComponent.params.tag.value !== inst.params.eatTag.value) {
                             continue;
                         }
+                        
+                        var proxy = game.api.getComponent(cols[i].gameObject, game.dev.proxy);
+                        if (proxy) {
+                            var act = proxy.params.gameObject.gameObjectRef;
+                            act = game.api.getComponent(act, game.dev.actor);
+                            if (act && act.params.lane.value !== actor.params.lane.value) {
+                                continue;
+                            }
+                        }
+
                         if (cols[i].interface.isInside(cols[i], front.interface.getWorldPosition({x: 0, y: 0}))) {
                             return cols[i];
                         }
@@ -57,11 +68,13 @@ var eatPlant = {
                         }
                     }
                 },
-                isEnabled: function(inst, playerInst) {
-                    return !!inst.interface.enemyCollider(inst, playerInst);
+                isEnabledImpl: function(inst, playerInst, record) {
+                    var col = inst.interface.enemyCollider(inst, playerInst);
+                    record.collider = col;
+                    return !!col;
                 },
                 coroutine: function* (inst, playerInst) {
-                    var col = inst.interface.enemyCollider(inst, playerInst);
+                    var col = inst.interface.checks.recentChecks[playerInst.gameObject.id].collider;
 
                     if (col) {
                         var actor = playerInst.context[inst.params.actorTag.value];
