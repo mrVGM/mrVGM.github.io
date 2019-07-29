@@ -49,7 +49,8 @@ var deployment = {
 
                     inst.interface.dispatchEvent(inst, inst.params.deployingTag.value, 1);
 
-                    var initFrame = game.api.lastFrame;
+                    var progress = 0;
+
                     var latest = 0;
                     for (var i = 0; i < inst.params.spawnData.value.length; ++i) {
                         if (latest < inst.params.spawnData.value[i].value.spawnFrame.value) {
@@ -57,8 +58,8 @@ var deployment = {
                         }
                     }
 
-                    while (game.api.lastFrame - initFrame <= latest) {
-                        var depl = inst.interface.getDeploymentForFrame(inst, game.api.lastFrame - initFrame);
+                    while (progress <= latest) {
+                        var depl = inst.interface.getDeploymentForFrame(inst, progress);
                         if (depl) {
                             var prefab = depl.actorPrefab.value;
                             prefab = game.library[prefab];
@@ -67,6 +68,7 @@ var deployment = {
                             actorComponent.params.lane.value = inst.params.lane.value;
                         }
                         yield;
+                        ++progress;
                     }
                 },
                 finish: function*(inst) {

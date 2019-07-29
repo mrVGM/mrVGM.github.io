@@ -114,6 +114,12 @@ game.api.getGuid = function() {
     return game.api.guid++;
 }
 
+game.api.scheduledForInstantiation = [];
+
+game.api.instantiateNextFrame = function(prefabStr, parent) {
+    game.api.scheduledForInstantiation.push({prefabStr: prefabStr, parent: parent});
+};
+
 game.api.instantiate = function (prefabStr, parent) {
     var prefab = JSON.parse(prefabStr);
 
@@ -266,6 +272,13 @@ game.api.render = function () {
 };
 
 game.api.gameLoop = function () {
+    for (var i = 0; i < game.api.scheduledForInstantiation.length; ++i) {
+        var cur = game.api.scheduledForInstantiation[i];
+        game.api.instantiate(cur.prefabStr, cur.parent);
+    }
+
+    game.api.scheduledForInstantiation = [];
+
     var frameStart = (new Date()).getTime();
 
     function getComponents(gameObject) {

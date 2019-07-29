@@ -22,6 +22,15 @@ var plantDefinition = {
                     name: 'Sun Cost',
                     type: 'number',
                     value: 100,
+                },
+                descriptionLines: {
+                    name: 'Description Lines',
+                    type: 'array',
+                    value: [],
+                    defaultElement: {
+                        type: 'text',
+                        value: '',
+                    },
                 }
             },
             interface: {},

@@ -36,7 +36,7 @@ var deployPlant = {
                     var sunStore = inst.context[inst.params.sunStoreTag.value];
                     sunStore.params.sunCollected.value -= plantCost;
 
-                    selectedPlantSlot.lastSpawn = game.api.lastFrame;
+                    selectedPlantSlot.interface.plantDeployed(selectedPlantSlot);
 
                     inst.context[inst.params.selectedDeployTileTag.value] = undefined;
                     inst.context[inst.params.selectedPlantSlotTag.value] = undefined;

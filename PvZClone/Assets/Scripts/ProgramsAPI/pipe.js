@@ -14,6 +14,7 @@ var program = {
                         while (!curProgram.finished) {
                             yield undefined;
                         }
+                        inst.context = curProgram.context;
                     }
                 },
                 finish: function* (inst) {

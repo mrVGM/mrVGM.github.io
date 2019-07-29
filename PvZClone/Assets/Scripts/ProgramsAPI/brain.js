@@ -6,16 +6,32 @@ var brain = {
         var inst = {
             name: 'Brain',
             params: {},
-            coroutines: [],
+            layersOperation: 0,
+            layers: [{
+                coroutines: []
+            }],
             eventEmitters: [],
             eventCatchers: [],
             interface: {
+                getCurrentLayer: function(inst) {
+                    return inst.layers[inst.layers.length - 1];
+                },
+                addLayer: function(inst) {
+                    inst.layersOperation = 1;
+                },
+                removeLayer: function(inst) {
+                    inst.layersOperation = -1;
+                },
                 addCoroutine: function (inst, c) {
-                    inst.coroutines.push(c);
+                    var currentLayer = inst.interface.getCurrentLayer(inst);
+                    currentLayer.coroutines.push(c);
                 },
                 update: function (inst, dt) {
-                    var tmp = inst.coroutines;
-                    inst.coroutines = [];
+                    inst.layersOperation = 0;
+
+                    var currentLayer = inst.interface.getCurrentLayer(inst);
+                    var tmp = currentLayer.coroutines;
+                    currentLayer.coroutines = [];
                     
                     for (var i = 0; i < tmp.length - 1; ++i) {
                         for (var j = i + 1; j < tmp.length; ++j) {
@@ -31,6 +47,13 @@ var brain = {
                         if (!res.done) {
                             inst.interface.addCoroutine(inst, { updateTime: tmp[i].updateTime, crt: tmp[i].crt });
                         }
+                    }
+
+                    if (inst.layersOperation === 1) {
+                        inst.layers.push({coroutines: []});
+                    }
+                    else if (inst.layersOperation === -1) {
+                        inst.layers.pop();
                     }
                 }
             },

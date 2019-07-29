@@ -10,11 +10,6 @@ var character = {
                     name: 'Default Animation',
                     type: 'fileObject',
                     value: undefined
-                },
-                playButton: {
-                    name: 'Play Button',
-                    type: 'gameObject',
-                    value: undefined
                 }
             },
             interface: {
@@ -44,10 +39,6 @@ var character = {
                         var tr = game.api.getComponent(inst.gameObject, game.dev.transform);
                         tr.params.x.value = game.api.baseStructures.saveGame.characterPosition.x;
                         tr.params.y.value = game.api.baseStructures.saveGame.characterPosition.y;
-                    }
-                    if (inst.interface.getSite(inst).params.level.value === 0) {
-                        var tr = game.api.getComponent(inst.params.playButton.gameObjectRef, game.dev.transform);
-                        tr.params.x.value = -1000;
                     }
                 }
             },
