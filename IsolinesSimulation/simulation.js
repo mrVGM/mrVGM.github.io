@@ -4,7 +4,7 @@ let ctx = canvas.getContext("2d");
 let mousepos = {x: -1000, y: -1000};
 let width = canvas.width;
 let height = canvas.height;
-let resolution = 490;
+let resolution = settings.resolution;
 
 let effectors = [];
 
@@ -81,8 +81,8 @@ function middle(v1, v2) {
 let baseSample = {
     x: 0,
     y: 0,
-    length: 8,
-    resolution: 500,
+    length: settings.sampleLength,
+    resolution: settings.sampleResolution,
     points: [],
     init: function() {
         for (let i = 0; i < baseSample.resolution; ++i) {
@@ -140,10 +140,12 @@ function getFrame(w, h) {
         }
     };
 
-    let stepH = w / 7;
-    let stepV = h / 5;
-    for (let i = 1; i <= 4; ++i) {
-        for (let j = 1; j <= 6; ++j) {
+    let rows = settings.effectors.rows;
+    let columns = settings.effectors.columns;
+    let stepH = w / (columns + 1);
+    let stepV = h / (rows + 1);
+    for (let i = 1; i <= rows; ++i) {
+        for (let j = 1; j <= columns; ++j) {
             let randomPoint = {
                 x: j * stepH,
                 y: i * stepV,
@@ -152,10 +154,10 @@ function getFrame(w, h) {
             effectors.push({
                 localPoint: randomPoint,
                 point: addVectors(frame.point, randomPoint),
-                effectValue: createDampedValue(0.1, 0.15),
+                effectValue: createDampedValue(0, settings.effectorsDamp),
                 baseValue: 0,
                 addedValue: 0,
-                radius: 35
+                radius: settings.effectorsRadius
             });
         }
     }
@@ -318,17 +320,12 @@ function marchingSquares(testFunc) {
 
 function draw() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-    marchingSquares(function(p) {
-        return p.getValue() > 0.4;
-    });
-
-    marchingSquares(function(p) {
-        return p.getValue() > 0.5;
-    });
-
-    marchingSquares(function(p) {
-        return p.getValue() > 0.6;
-    });
+    for (let i = 0; i < settings.isolinesThresholds.length; ++i) {
+        let cur = settings.isolinesThresholds[i];
+        marchingSquares(function(p) {
+            return p.getValue() >= cur;
+        });
+    }
 }
 
 let effectorsAnimation = animateEffectors();
@@ -347,16 +344,17 @@ function animateEffectors() {
     function animate() {
         let mouselocalPos = {x: mousepos.x / canvas.width, y: mousepos.y / canvas.height};
         mouselocalPos = frame.getLocalCoordinates(mouselocalPos);
-        mouseEffectValue = 1;
+        mouseEffectValue = settings.mouseEffectorBudget;
 
-        let closestValue = 100000;
+        let mouseEffectDist = settings.mouseEffectDistSquared;
+        let closestValue = 2 * mouseEffectDist;
         let effectorDistances = [];
         for (let i = 0; i < effectors.length; ++i) {
             let cur = effectors[i];
             cur.addedValue = 0;
             let offset = addVectors(mouselocalPos, negateVector(cur.localPoint));
             let dist = dot(offset, offset);
-            if (dist > 1300) {
+            if (dist > mouseEffectDist) {
                 continue;
             }
             if (dist < closestValue) {
@@ -367,10 +365,10 @@ function animateEffectors() {
         }
 
         
-        if (closestValue > 1300) {
+        if (closestValue > mouseEffectDist) {
             mouseEffectValue = 0;
         }
-        mouseEffectValue *= 1 - closestValue / 1300;
+        mouseEffectValue *= 1 - closestValue / mouseEffectDist;
         
 
         let distSum = 0;
@@ -381,18 +379,18 @@ function animateEffectors() {
         if (distSum > 0) {
             for (let i = 0; i < effectorDistances.length; ++i) {
                 let cur = effectorDistances[i];
-                cur.effector.addedValue = Math.max(mouseEffectValue * cur.dist / distSum, 0.1);
+                cur.effector.addedValue = Math.max(mouseEffectValue * cur.dist / distSum, settings.maxMouseEffectorValue);
             }
         }
 
         let now = Date.now();
-        if (now - lastUpdate < 1000) {
+        if (now - lastUpdate < settings.wiggleCycle * 1000) {
             return;
         }
         lastUpdate = now;
 
         for (let i = 0; i < effectors.length; ++i) {
-            effectors[i].baseValue = Math.random() * 0.2;
+            effectors[i].baseValue = Math.random() * settings.effectorsWiggle;
         }
     }
     return function() {

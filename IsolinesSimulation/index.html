@@ -5,6 +5,23 @@
         <canvas id="canvas" width="1280" height="720">
         </canvas>
 
+        <script>
+           let settings = {
+                sampleResolution: 500,
+                sampleLength: 8,
+                resolution: 490,
+                effectors: {rows: 4, columns: 6},
+                effectorsRadius: 35,
+                effectorsWiggle: 0.2,
+                wiggleCycle: 1,
+                effectorsDamp: 0.15,
+                mouseEffectorBudget: 1,
+                mouseEffectDistSquared: 1300,
+                maxMouseEffectorValue: 0.1,
+                isolinesThresholds: [0.4, 0.5, 0.6],
+            };
+        </script>
+
         <script src='https://joeiddon.github.io/perlin/perlin.js'></script>
         <script src="simulation.js">
         </script>
