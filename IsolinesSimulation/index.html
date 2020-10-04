@@ -1,24 +1,25 @@
 <!DOCTYPE html>
 <html>
     <head></head>
-    <body>
-        <canvas id="canvas" width="1280" height="720">
+    <body style="padding: 0; margin: 0">
+        <canvas id="canvas" width="1920" height="300" style="opacity:0.2; width: 100vw; margin: 0; padding: 0">
         </canvas>
 
         <script>
            let settings = {
                 sampleResolution: 500,
-                sampleLength: 8,
-                resolution: 490,
-                effectors: {rows: 4, columns: 6},
+                sampleLength: 20,
+                resolution: 300,
+                effectors: {rows: 2, columns: 6},
                 effectorsRadius: 35,
                 effectorsWiggle: 0.2,
                 wiggleCycle: 1,
-                effectorsDamp: 0.15,
-                mouseEffectorBudget: 1,
-                mouseEffectDistSquared: 1300,
-                maxMouseEffectorValue: 0.1,
-                isolinesThresholds: [0.4, 0.5, 0.6],
+                effectorsDamp: 0.05,
+                mouseEffectValue: -0.2,
+                mouseEffectorRadius: 15,
+                mouseSquaredDistToReachFullValue: 200,
+                mouseEffectorDamp: 4,
+                isolinesThresholds: [0.4, 0.5, 0.6, 0.8],
             };
         </script>
 

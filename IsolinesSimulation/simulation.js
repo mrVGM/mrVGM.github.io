@@ -8,8 +8,20 @@ let resolution = settings.resolution;
 
 let effectors = [];
 
+let mouseDampedPos = createDampedVector({x: 0, y: 0}, settings.mouseEffectorDamp);
+
 canvas.addEventListener("mousemove", function(e) {
     mousepos = {x: e.offsetX, y: e.offsetY};
+});
+
+canvas.addEventListener("mouseleave", function(e) {
+    mousepos = undefined;
+});
+
+canvas.addEventListener("mouseenter", function(e) {
+    mousepos = {x: e.offsetX, y: e.offsetY};
+    mouseDampedPos.cur = {x: e.offsetX, y: e.offsetY};
+    mouseDampedPos.target = {x: e.offsetX, y: e.offsetY};
 });
 
 function createDampedValue(val, dampFactor) {
@@ -32,6 +44,32 @@ function createDampedValue(val, dampFactor) {
 
         let t = Math.min(dt * res.dampFactor / 1000, 1);
         res.cur = t * res.target + (1 - t) * res.cur;
+    }
+    return res;
+}
+
+function createDampedVector(val, dampFactor) {
+    let res = {
+        target: val,
+        cur: val,
+        dampFactor: dampFactor,
+        update: update,
+    };
+
+    let lastUpdate = Date.now();
+    function update() {
+        let now = Date.now();
+        let dt = now - lastUpdate;
+        lastUpdate = now;
+
+        let offset = addVectors(res.target, negateVector(res.cur));
+        let distSquared = dot(offset, offset);
+        if (distSquared < 0.0001) {
+            return;
+        }
+
+        let t = Math.min(dt * res.dampFactor / 1000, 1);
+        res.cur = addVectors(multiplyVectors(t, res.target), multiplyVectors(1 - t, res.cur));
     }
     return res;
 }
@@ -72,12 +110,6 @@ function toIntVector(v) {
     return {x : Math.round(v.x), y: Math.round(v.y)};
 }
 
-function middle(v1, v2) {
-    let tmp = addVectors(v1, v2);
-    tmp = multiplyVectors(0.5, tmp);
-    return tmp;
-}
-
 let baseSample = {
     x: 0,
     y: 0,
@@ -99,13 +131,13 @@ let baseSample = {
                         for (let i = 0; i < effectors.length; ++i) {
                             let cur = effectors[i];
 
-                            let offset = addVectors(cur.point, negateVector(vertex.point));
+                            let offset = addVectors(cur.getCenter(), negateVector(vertex.point));
                             let dist = dot(offset, offset);
                             let area = cur.radius * cur.radius;
                             if (dist > area) {
                                 continue;
                             }
-                            val += (1 - dist / area) * cur.effectValue.cur;
+                            val += (1 - dist / area) * cur.getEffectValue();
                         }
                         return val;
                     }
@@ -151,14 +183,20 @@ function getFrame(w, h) {
                 y: i * stepV,
             };
 
-            effectors.push({
+            let effector = {
                 localPoint: randomPoint,
-                point: addVectors(frame.point, randomPoint),
                 effectValue: createDampedValue(0, settings.effectorsDamp),
+                getEffectValue: function() {
+                    return effector.effectValue.cur;
+                },
+                getCenter: function() {
+                    return addVectors(frame.point, effector.localPoint);
+                },
                 baseValue: 0,
                 addedValue: 0,
                 radius: settings.effectorsRadius
-            });
+            };
+            effectors.push(effector);
         }
     }
     
@@ -180,6 +218,25 @@ else {
 baseSample.init();
 let frame = getFrame(width, height);
 
+let mouseEffector = {
+    localPoint: {x: 0, y: 0},
+    getCenter: function() {
+        return addVectors(frame.point, mouseEffector.localPoint);
+    },
+    effectValue : 0,
+    getEffectValue: function() {
+        return mouseEffector.effectValue;
+    },
+    radius: settings.mouseEffectorRadius
+};
+
+let animatableEffectors = [];
+for (let i = 0; i < effectors.length; ++i) {
+    animatableEffectors.push(effectors[i]);
+}
+
+effectors.push(mouseEffector);
+
 function createSquareSample(x, y, testFunc) {
     let p1Local = {x: x,     y: y};
     let p2Local = {x: x + 1, y: y};
@@ -198,10 +255,10 @@ function createSquareSample(x, y, testFunc) {
 
     let res = {
         points: [
-            {point: toRealCoordinates(p1Local), testValue: testFunc(p1)},
-            {point: toRealCoordinates(p2Local), testValue: testFunc(p2)},
-            {point: toRealCoordinates(p3Local), testValue: testFunc(p3)},
-            {point: toRealCoordinates(p4Local), testValue: testFunc(p4)},
+            {point: toRealCoordinates(p1Local), testValue: testFunc(p1), value: p1.getValue()},
+            {point: toRealCoordinates(p2Local), testValue: testFunc(p2), value: p2.getValue()},
+            {point: toRealCoordinates(p3Local), testValue: testFunc(p3), value: p3.getValue()},
+            {point: toRealCoordinates(p4Local), testValue: testFunc(p4), value: p4.getValue()},
         ],
         rotate: function() {
             res.points = [res.points[1], res.points[2], res.points[3], res.points[0]];
@@ -217,9 +274,9 @@ let template1 = {
         {testValue: false},
         {testValue: false},
     ],
-    handler: function(pts) {
-        let startPoint = middle(pts[0].point, pts[3].point);
-        let endPoint = middle(pts[0].point, pts[1].point);
+    handler: function(pts, middleFunc) {
+        let startPoint = middleFunc(pts[0], pts[3]);
+        let endPoint = middleFunc(pts[0], pts[1]);
         ctx.beginPath();
         ctx.moveTo(startPoint.x, startPoint.y);
         ctx.lineTo(endPoint.x, endPoint.y);
@@ -234,9 +291,9 @@ let template2 = {
         {testValue: true},
         {testValue: true},
     ],
-    handler: function(pts) {
-        let startPoint = middle(pts[0].point, pts[3].point);
-        let endPoint = middle(pts[0].point, pts[1].point);
+    handler: function(pts, middleFunc) {
+        let startPoint = middleFunc(pts[0], pts[3]);
+        let endPoint = middleFunc(pts[0], pts[1]);
         ctx.beginPath();
         ctx.moveTo(startPoint.x, startPoint.y);
         ctx.lineTo(endPoint.x, endPoint.y);
@@ -251,9 +308,9 @@ let template3 = {
         {testValue: false},
         {testValue: false},
     ],
-    handler: function(pts) {
-        let startPoint = middle(pts[0].point, pts[3].point);
-        let endPoint = middle(pts[1].point, pts[2].point);
+    handler: function(pts, middleFunc) {
+        let startPoint = middleFunc(pts[0], pts[3]);
+        let endPoint = middleFunc(pts[1], pts[2]);
         ctx.beginPath();
         ctx.moveTo(startPoint.x, startPoint.y);
         ctx.lineTo(endPoint.x, endPoint.y);
@@ -268,16 +325,16 @@ let template4 = {
         {testValue: true},
         {testValue: false},
     ],
-    handler: function(pts) {
-        let startPoint = middle(pts[0].point, pts[1].point);
-        let endPoint = middle(pts[1].point, pts[2].point);
+    handler: function(pts, middleFunc) {
+        let startPoint = middleFunc(pts[0], pts[1]);
+        let endPoint = middleFunc(pts[1], pts[2]);
         ctx.beginPath();
         ctx.moveTo(startPoint.x, startPoint.y);
         ctx.lineTo(endPoint.x, endPoint.y);
         ctx.stroke();
 
-        startPoint = middle(pts[0].point, pts[3].point);
-        endPoint = middle(pts[2].point, pts[3].point);
+        startPoint = middleFunc(pts[0], pts[3]);
+        endPoint = middleFunc(pts[2], pts[3]);
         ctx.beginPath();
         ctx.moveTo(startPoint.x, startPoint.y);
         ctx.lineTo(endPoint.x, endPoint.y);
@@ -296,24 +353,24 @@ function matchTemplate(t1, t2) {
     return true;
 }
 
-function handleSample(t)  {
+function handleSample(t, middleFunc)  {
     for (let i = 0; i < 4; ++i) {
         t.rotate();
         for (let j = 0; j < templates.length; ++j) {
             let cur = templates[j];
             if (matchTemplate(t, cur)) {
-                cur.handler(t.points);
+                cur.handler(t.points, middleFunc);
                 return;
             }
         }
     }
 }
 
-function marchingSquares(testFunc) {
+function marchingSquares(testFunc, middleFunc) {
     for (let i = 0; i < height-1; ++i) {
         for (let j = 0; j < width-1; ++j) {
             let sample = createSquareSample(j, i, testFunc);
-            handleSample(sample);
+            handleSample(sample, middleFunc);
         }
     }
 }
@@ -324,6 +381,15 @@ function draw() {
         let cur = settings.isolinesThresholds[i];
         marchingSquares(function(p) {
             return p.getValue() >= cur;
+        },
+        function(p1, p2) {
+            let p1Val = p1.value;
+            let p2Val = p2.value;
+            let coef = (cur - Math.min(p1Val, p2Val)) / Math.abs(p1Val - p2Val);
+            if (p1Val > p2Val) {
+                coef = 1 - coef;
+            }
+            return addVectors(multiplyVectors((1 - coef), p1.point), multiplyVectors(coef, p2.point));
         });
     }
 }
@@ -331,8 +397,9 @@ function draw() {
 let effectorsAnimation = animateEffectors();
 function animate() {
     effectorsAnimation();
-    for (let i = 0; i < effectors.length; ++i) {
-        effectors[i].effectValue.update();
+    animateMouseEffector();
+    for (let i = 0; i < animatableEffectors.length; ++i) {
+        animatableEffectors[i].effectValue.update();
     }
     draw();
 
@@ -342,63 +409,45 @@ function animate() {
 function animateEffectors() {
     let lastUpdate = Date.now();
     function animate() {
-        let mouselocalPos = {x: mousepos.x / canvas.width, y: mousepos.y / canvas.height};
-        mouselocalPos = frame.getLocalCoordinates(mouselocalPos);
-        mouseEffectValue = settings.mouseEffectorBudget;
-
-        let mouseEffectDist = settings.mouseEffectDistSquared;
-        let closestValue = 2 * mouseEffectDist;
-        let effectorDistances = [];
-        for (let i = 0; i < effectors.length; ++i) {
-            let cur = effectors[i];
-            cur.addedValue = 0;
-            let offset = addVectors(mouselocalPos, negateVector(cur.localPoint));
-            let dist = dot(offset, offset);
-            if (dist > mouseEffectDist) {
-                continue;
-            }
-            if (dist < closestValue) {
-                closestValue = dist;
-            }
-
-            effectorDistances.push({effector: cur, dist: dist});
-        }
-
-        
-        if (closestValue > mouseEffectDist) {
-            mouseEffectValue = 0;
-        }
-        mouseEffectValue *= 1 - closestValue / mouseEffectDist;
-        
-
-        let distSum = 0;
-        for (let i = 0; i < effectorDistances.length; ++i) {
-            distSum += effectorDistances[i].dist;
-        }
-
-        if (distSum > 0) {
-            for (let i = 0; i < effectorDistances.length; ++i) {
-                let cur = effectorDistances[i];
-                cur.effector.addedValue = Math.max(mouseEffectValue * cur.dist / distSum, settings.maxMouseEffectorValue);
-            }
-        }
-
         let now = Date.now();
         if (now - lastUpdate < settings.wiggleCycle * 1000) {
             return;
         }
         lastUpdate = now;
 
-        for (let i = 0; i < effectors.length; ++i) {
-            effectors[i].baseValue = Math.random() * settings.effectorsWiggle;
+        for (let i = 0; i < animatableEffectors.length; ++i) {
+            animatableEffectors[i].baseValue = 2 * (Math.random() - 0.5) * settings.effectorsWiggle;
         }
     }
     return function() {
         animate();
-        for (let i = 0; i < effectors.length; ++i) {
-            let cur = effectors[i];
+        for (let i = 0; i < animatableEffectors.length; ++i) {
+            let cur = animatableEffectors[i];
             cur.effectValue.target = cur.baseValue + cur.addedValue;
         }
     }
 }
+
+function animateMouseEffector() {
+    if (mousepos) {
+        mouseDampedPos.target = mousepos;
+    }
+    mouseDampedPos.update();
+
+    let normalizedCurPos = {x: mouseDampedPos.cur.x / canvas.width, y: mouseDampedPos.cur.y / canvas.height};
+    let normalizedTargetPos = {x: mouseDampedPos.target.x / canvas.width, y: mouseDampedPos.target.y / canvas.height};
+
+    let localCurPos = frame.getLocalCoordinates(normalizedCurPos);
+    let localTargetPos = frame.getLocalCoordinates(normalizedTargetPos);
+
+    let offset = addVectors(localTargetPos, negateVector(localCurPos));
+    let distSquared = dot(offset, offset);
+
+    let c = distSquared / settings.mouseSquaredDistToReachFullValue;
+    c = Math.min(c, 1);
+
+    mouseEffector.localPoint = localCurPos;
+    mouseEffector.effectValue = settings.mouseEffectValue * c;
+}
+
 animate();
