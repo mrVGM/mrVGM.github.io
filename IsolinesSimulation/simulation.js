@@ -450,4 +450,6 @@ function animateMouseEffector() {
     mouseEffector.effectValue = settings.mouseEffectValue * c;
 }
 
+ctx.lineWidth = 3;
+
 animate();
