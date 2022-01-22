@@ -1,0 +1,31 @@
+let prelude = {};
+prelude.getGame = function() {
+	return Base.Game.Instance;
+};
+
+prelude.info = function() {
+	let raycastInfo = require("./info.txt");
+	return raycastInfo();
+};
+
+prelude.playAbility = function() {
+	let playAbility = require("./gruntz.txt").playAbility;
+	return playAbility();
+};
+
+prelude.spawn = function(name) {
+	let spawn = require("./gruntz.txt").spawn;
+	return spawn(name);
+};
+
+prelude.switchState = function(index) {
+	let switch = require("./gruntz.txt").switchState;
+	return switch(index);
+};
+
+prelude.giveWeapon = function(name) {
+	let giveWeapon = require("./gruntz.txt").giveWeapon;
+	return giveWeapon(name);
+};
+
+exports = prelude;
